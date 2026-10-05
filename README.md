@@ -197,7 +197,8 @@ Debug APK 仅用于开发测试，不同电脑或 CI 运行可能使用不同的
 首次签名材料已配置到本仓库 Secrets。本机备份位于
 `%USERPROFILE%\.android\signing\dlut-fakerun\`，其中 `release.p12` 是密钥库，
 `signing-secrets.json` 包含本地构建所需路径和密码；该目录限制了访问权限。
-请另行妥善备份，后续版本持续使用同一密钥。Fork 本仓库时需要配置自己的 Secrets 与证书指纹。
+请另行妥善备份，后续版本持续使用同一密钥。发布工作流会与 `release-certificate.sha256` 比对，防止误换证书。
+Fork 本仓库时需要配置自己的 Secrets、指纹文件与 README 中的证书指纹。
 
 发布方式：
 

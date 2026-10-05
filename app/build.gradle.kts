@@ -1,8 +1,10 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersion = java.util.Properties().apply {
+val appVersion = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
 val releaseStore = providers.environmentVariable("ANDROID_KEYSTORE_PATH")

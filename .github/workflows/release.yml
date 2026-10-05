@@ -57,6 +57,9 @@ jobs:
           apk="dist/FakeGPS-${version}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > dist/signature.txt
+          actual=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' dist/signature.txt | tr '[:lower:]' '[:upper:]')
+          expected=$(tr -d '[:space:]' < release-certificate.sha256)
+          test "$actual" = "$expected" || { echo 'Release certificate does not match the pinned identity'; exit 1; }
           (cd dist && sha256sum "FakeGPS-${version}.apk" > SHA256SUMS.txt)
       - name: Upload signed release
         uses: actions/upload-artifact@v4
