@@ -60,7 +60,7 @@ val validateReleaseSigning = tasks.register("validateReleaseSigning") {
     doLast {
         check(releaseSigningReady) {
             "Release signing is missing. Set ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, " +
-                "ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (see README). Use assembleDebug for development."
+                "ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (see .github/workflows/release.yml). Use assembleDebug for development."
         }
         check(file(releaseStore.get()).isFile) { "ANDROID_KEYSTORE_PATH does not point to a keystore file." }
     }

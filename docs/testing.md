@@ -46,7 +46,7 @@ adb -s <device> shell appops set com.langqi.fakegps android:mock_location allow
 
 1.0 版迁移表来自提交 `8a42c1e` 的 Debug / Release 资源表。其他自行改动资源表的旧构建
 无法仅凭数字 ID 可靠判断原路线，未知 ID 会回退到默认选择，需手动确认。
-签名不同的 APK 不能执行此覆盖升级流程；Debug → 新 Release 首次迁移见 README。
+签名不同的 APK 不能执行此覆盖升级流程；Debug → 新 Release 首次迁移请保留原始 KML，卸载旧版后重新导入。
 
 ## 第三方应用
 
