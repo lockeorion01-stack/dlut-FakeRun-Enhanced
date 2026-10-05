@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/app_background"
     android:clipToPadding="false"
     android:fillViewport="true"
-    android:paddingBottom="24dp">
+    android:paddingBottom="24dp"
+    android:id="@+id/dashboard">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -113,58 +114,68 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="vertical">
 
                     <Spinner
                         android:id="@+id/route_selector"
-                        android:layout_width="0dp"
-                        android:layout_height="52dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:background="@drawable/bg_field"
                         android:paddingStart="4dp"
-                        android:paddingEnd="4dp" />
+                        android:paddingEnd="4dp"
+                        android:minHeight="52dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_browse"
-                        android:layout_width="wrap_content"
-                        android:layout_height="52dp"
-                        android:layout_marginStart="8dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/primary_orange"
                         android:minHeight="48dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
                         android:text="@string/route_add"
                         android:textColor="@color/black"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minWidth="48dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="horizontal">
+                    android:orientation="vertical">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_update_route"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_marginEnd="4dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/route_replace"
-                        android:textColor="@color/text_primary" />
+                        android:textColor="@color/text_primary"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_delete_route"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_marginStart="4dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/route_delete"
-                        android:textColor="@color/text_primary" />
+                        android:textColor="@color/text_primary"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
 
                 <TextView
@@ -224,7 +235,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:id="@+id/pace_metrics">
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -287,7 +299,7 @@
                             android:fontFamily="monospace"
                             android:text="@string/target_pace_default"
                             android:textColor="@color/target_yellow"
-                            android:textSize="30sp"
+                            android:textSize="22sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -330,7 +342,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:id="@+id/run_metrics">
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -453,38 +466,43 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:labelFor="@id/input_pace"
+                    android:text="@string/pace_label"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:layout_marginTop="16dp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:labelFor="@id/input_pace"
-                        android:text="@string/pace_label"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
-
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_pace_down"
                         android:contentDescription="@string/pace_decrease_description"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/pace_decrease"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        android:minWidth="56dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
 
                     <EditText
                         android:id="@+id/input_pace"
                         android:importantForAutofill="no"
-                        android:layout_width="76dp"
-                        android:layout_height="48dp"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_field"
@@ -495,52 +513,66 @@
                         android:text="@string/pace_default"
                         android:textColor="@color/target_yellow"
                         android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minHeight="48dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:layout_weight="1" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_pace_up"
                         android:contentDescription="@string/pace_increase_description"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/pace_increase"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        android:minWidth="56dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:labelFor="@id/input_repetitions"
+                    android:text="@string/laps_label"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:layout_marginTop="12dp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:labelFor="@id/input_repetitions"
-                        android:text="@string/laps_label"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
-
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_laps_down"
                         android:contentDescription="@string/laps_decrease_description"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/laps_decrease"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        android:minWidth="56dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
 
                     <EditText
                         android:id="@+id/input_repetitions"
                         android:importantForAutofill="no"
-                        android:layout_width="76dp"
-                        android:layout_height="48dp"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_field"
@@ -549,49 +581,54 @@
                         android:text="@string/laps_default"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minHeight="48dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:layout_weight="1" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_laps_up"
                         android:contentDescription="@string/laps_increase_description"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
                         android:text="@string/laps_increase"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        android:minWidth="56dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp" />
                 </LinearLayout>
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:labelFor="@id/input_interval"
+                    android:text="@string/interval_label"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:layout_marginTop="12dp" />
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:labelFor="@id/input_interval"
-                        android:text="@string/interval_label"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp" />
-
-                    <EditText
-                        android:id="@+id/input_interval"
-                        android:importantForAutofill="no"
-                        android:layout_width="100dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_field"
-                        android:gravity="center"
-                        android:inputType="numberDecimal"
-                        android:text="@string/interval_default"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                <EditText
+                    android:id="@+id/input_interval"
+                    android:importantForAutofill="no"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_field"
+                    android:gravity="center"
+                    android:inputType="numberDecimal"
+                    android:text="@string/interval_default"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:minHeight="48dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -621,58 +658,83 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:layout_marginTop="16dp">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_start"
                         android:layout_width="0dp"
-                        android:layout_height="52dp"
-                        android:layout_marginEnd="4dp"
-                        android:layout_weight="1.25"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:backgroundTint="@color/status_green"
-                        android:minHeight="48dp"
+                        android:minHeight="52dp"
                         android:text="@string/run_start"
                         android:textColor="@color/black"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginEnd="4dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_pause"
                         android:layout_width="0dp"
-                        android:layout_height="52dp"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:backgroundTint="@color/target_yellow"
-                        android:minHeight="48dp"
+                        android:minHeight="52dp"
                         android:text="@string/run_pause"
                         android:textColor="@color/black"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
 
-                    <Button
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_resume"
                         android:layout_width="0dp"
-                        android:layout_height="52dp"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:backgroundTint="@color/primary_orange"
-                        android:minHeight="48dp"
+                        android:minHeight="52dp"
                         android:text="@string/run_resume"
                         android:textColor="@color/black"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginEnd="4dp" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_stop"
                         android:layout_width="0dp"
-                        android:layout_height="52dp"
-                        android:layout_marginStart="4dp"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:backgroundTint="@color/danger_red"
-                        android:minHeight="48dp"
+                        android:minHeight="52dp"
                         android:text="@string/run_stop"
                         android:textColor="@color/white"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:minWidth="48dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:layout_marginStart="4dp" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

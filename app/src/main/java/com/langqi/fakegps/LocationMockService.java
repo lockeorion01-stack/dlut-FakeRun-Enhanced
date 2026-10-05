@@ -42,6 +42,12 @@ public class LocationMockService extends Service {
     private RunController controller;
     private RunResultStore results;
     private LocationManager locationManager;
+    private AppOpsManager appOps;
+    private final AppOpsManager.OnOpChangedListener authorizationListener = (op, packageName) -> {
+        if (packageName == null || packageName.equals(getPackageName())) {
+            handler.post(this::authorizationChanged);
+        }
+    };
     private PowerManager.WakeLock wakeLock;
     private boolean gpsAdded;
     private boolean networkAdded;
@@ -70,9 +76,9 @@ public class LocationMockService extends Service {
             // Criteria constants have the same values as ProviderProperties (added in API 31).
             @android.annotation.SuppressLint("WrongConstant")
             @Override public void open() {
-                // Enter the foreground before any provider operation which could fail.
-                startForeground(1, notification(controller.snapshot()));
-                foreground = true;
+                // onStartCommand normally enters the foreground first; keep this guard for
+                // direct starts and for older Android versions.
+                ensureForeground();
                 checkAuthorization();
                 locationManager.addTestProvider(LocationManager.GPS_PROVIDER, false, true, false,
                         false, true, true, true, Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
@@ -85,13 +91,19 @@ public class LocationMockService extends Service {
             }
 
             @Override public void write(GeoUtils.TrackPosition position, double speed) {
-                // Exceptions propagate to the controller, which freezes progress and reports ERROR.
+                // Android may silently ignore a write when the mock AppOp is revoked.
+                // Check both sides of the Binder calls before committing any progress.
+                checkAuthorization();
                 writeLocation(LocationManager.GPS_PROVIDER, position, speed, 6f);
                 writeLocation(LocationManager.NETWORK_PROVIDER, position, speed, 15f);
+                checkAuthorization();
             }
 
             @Override public void close() { releaseResources(); }
         }, this::publish);
+        appOps = getSystemService(AppOpsManager.class);
+        appOps.startWatchingMode(AppOpsManager.OPSTR_MOCK_LOCATION, getPackageName(),
+                authorizationListener);
     }
 
     void addListener(RunController.Listener listener) {
@@ -119,13 +131,24 @@ public class LocationMockService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
-        if (START.equals(action)) controller.start();
+        if (START.equals(action)) {
+            // Android 16 has a tighter startForegroundService deadline. Publish the
+            // notification before authorization/AppOps and provider Binder calls.
+            ensureForeground();
+            controller.start();
+        }
         else if (PAUSE.equals(action)) controller.pause();
         else if (RESUME.equals(action)) controller.resume();
         else if (STOP.equals(action)) controller.stop();
         if (!controller.snapshot().active()) stopSelf(startId);
         // A killed process must never silently restart a run with missing configuration.
         return START_NOT_STICKY;
+    }
+
+    private void ensureForeground() {
+        if (foreground) return;
+        startForeground(1, notification(controller.snapshot()));
+        foreground = true;
     }
 
     private void checkAuthorization() {
@@ -137,6 +160,16 @@ public class LocationMockService extends Service {
         if (manager.checkOpNoThrow(AppOpsManager.OPSTR_MOCK_LOCATION, Process.myUid(), getPackageName())
                 != AppOpsManager.MODE_ALLOWED) {
             throw new SecurityException("未被选为模拟位置应用");
+        }
+    }
+
+    private void authorizationChanged() {
+        // Also terminate paused sessions, which have no scheduled location writes.
+        if (!controller.snapshot().active()) return;
+        try {
+            checkAuthorization();
+        } catch (SecurityException e) {
+            controller.fail(e);
         }
     }
 
@@ -222,6 +255,7 @@ public class LocationMockService extends Service {
 
     @Override
     public void onDestroy() {
+        appOps.stopWatchingMode(authorizationListener);
         controller.stop();
         handler.removeCallbacksAndMessages(null);
         releaseResources();
