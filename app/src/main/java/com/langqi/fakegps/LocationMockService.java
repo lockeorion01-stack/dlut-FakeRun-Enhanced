@@ -76,9 +76,9 @@ public class LocationMockService extends Service {
             // Criteria constants have the same values as ProviderProperties (added in API 31).
             @android.annotation.SuppressLint("WrongConstant")
             @Override public void open() {
-                // Enter the foreground before any provider operation which could fail.
-                startForeground(1, notification(controller.snapshot()));
-                foreground = true;
+                // onStartCommand normally enters the foreground first; keep this guard for
+                // direct starts and for older Android versions.
+                ensureForeground();
                 checkAuthorization();
                 locationManager.addTestProvider(LocationManager.GPS_PROVIDER, false, true, false,
                         false, true, true, true, Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
@@ -131,13 +131,24 @@ public class LocationMockService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
-        if (START.equals(action)) controller.start();
+        if (START.equals(action)) {
+            // Android 16 has a tighter startForegroundService deadline. Publish the
+            // notification before authorization/AppOps and provider Binder calls.
+            ensureForeground();
+            controller.start();
+        }
         else if (PAUSE.equals(action)) controller.pause();
         else if (RESUME.equals(action)) controller.resume();
         else if (STOP.equals(action)) controller.stop();
         if (!controller.snapshot().active()) stopSelf(startId);
         // A killed process must never silently restart a run with missing configuration.
         return START_NOT_STICKY;
+    }
+
+    private void ensureForeground() {
+        if (foreground) return;
+        startForeground(1, notification(controller.snapshot()));
+        foreground = true;
     }
 
     private void checkAuthorization() {
