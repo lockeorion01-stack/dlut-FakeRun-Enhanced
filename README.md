@@ -136,7 +136,7 @@ $device = "127.0.0.1:$port"
 ```
 
 要求 JDK 17、Android SDK Platform 36 与 Build Tools 36.0.0（SDK 路径写在 `local.properties`）。
-项目使用 Gradle 8.13 和 Android Gradle Plugin 8.13.2，Wrapper 配置了官方分发包 SHA-256 校验。
+项目使用 Gradle 8.14.5 和 Android Gradle Plugin 8.14.5，Wrapper 配置了官方分发包 SHA-256 校验。
 Windows PowerShell 下将 `./gradlew` 换成 `.\gradlew.bat`。
 
 跑单元测试：
