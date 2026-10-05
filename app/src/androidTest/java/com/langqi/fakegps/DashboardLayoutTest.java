@@ -2,9 +2,12 @@ package com.langqi.fakegps;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.ScrollView;
 
 import androidx.appcompat.view.ContextThemeWrapper;
 import androidx.core.graphics.ColorUtils;
@@ -13,6 +16,10 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 import static org.junit.Assert.*;
 
@@ -52,9 +59,31 @@ public class DashboardLayoutTest {
                         }
                         if (view.isClickable()) assertTrue(detail, view.getHeight() >= 48 * density - 1);
                     }
+                    if ((widthDp == 375 && scale == 1f) || (widthDp == 320 && scale == 2f)) {
+                        savePreview(themed, dashboard, widthDp + "dp-" + scale + "x");
+                    }
                 }
             }
         });
+    }
+
+    private static void savePreview(Context context, View dashboard, String name) {
+        View content = ((ScrollView) dashboard).getChildAt(0);
+        Bitmap bitmap = Bitmap.createBitmap(content.getWidth(), content.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(context.getColor(R.color.app_background));
+        content.draw(canvas);
+        File directory = new File(context.getExternalFilesDir(null), "layout-previews");
+        try {
+            if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create preview directory");
+            try (FileOutputStream output = new FileOutputStream(new File(directory, "dashboard-" + name + ".png"))) {
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output));
+            }
+        } catch (IOException e) {
+            throw new AssertionError(e);
+        } finally {
+            bitmap.recycle();
+        }
     }
 
     @Test public void normalTextContrastMeetsFourPointFiveToOne() {
