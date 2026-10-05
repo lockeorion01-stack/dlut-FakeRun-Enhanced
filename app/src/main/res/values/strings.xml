@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FakeGPS</string>
+
+    <string-array name="route_names">
+        <item>东盟 1 (0.44km)</item>
+        <item>东盟 2 (0.44km)</item>
+        <item>东盟 3 (0.44km)</item>
+        <item>东盟 4 (0.45km)</item>
+        <item>东盟 5 (0.44km)</item>
+        <item>大学路 1 (0.44km)</item>
+        <item>大学路 2 (0.43km)</item>
+        <item>大学路 3 (0.43km)</item>
+        <item>大学路 4 (0.43km)</item>
+        <item>大学路 5 (0.42km)</item>
+        <item>大学路 6 (0.44km)</item>
+        <item>默认路径 (3km)</item>
+    </string-array>
+</resources>
