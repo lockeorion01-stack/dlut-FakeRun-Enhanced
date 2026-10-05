@@ -20,6 +20,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -29,6 +30,10 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import java.util.ArrayList;
@@ -104,7 +109,18 @@ public class FakeGPSActivity extends AppCompatActivity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_fake_gps);
+        View root = findViewById(R.id.dashboard);
+        adaptMetricRows(root);
+        int bottomPadding = root.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars()
+                    | WindowInsetsCompat.Type.displayCutout() | WindowInsetsCompat.Type.ime());
+            view.setPadding(insets.left, insets.top, insets.right, bottomPadding + insets.bottom);
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(root);
         model = new ViewModelProvider(this).get(RouteViewModel.class);
         if (savedInstanceState != null) pendingReplacementKey = savedInstanceState.getString("replacement");
         initializeViews();
@@ -118,6 +134,29 @@ public class FakeGPSActivity extends AppCompatActivity {
             updateRoutes();
             render();
         });
+    }
+
+    static void adaptMetricRows(View root) {
+        android.content.res.Configuration configuration = root.getResources().getConfiguration();
+        if (configuration.screenWidthDp >= 360 && configuration.fontScale <= 1.3f) return;
+        for (int id : new int[]{R.id.pace_metrics, R.id.run_metrics}) {
+            LinearLayout row = root.findViewById(id);
+            row.setOrientation(LinearLayout.VERTICAL);
+            for (int i = 0; i < row.getChildCount(); i++) {
+                View child = row.getChildAt(i);
+                if (!(child instanceof LinearLayout)) {
+                    child.setVisibility(View.GONE); // Horizontal rows use vertical dividers.
+                    continue;
+                }
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) child.getLayoutParams();
+                params.width = LinearLayout.LayoutParams.MATCH_PARENT;
+                params.weight = 0;
+                params.setMarginStart(0);
+                params.setMarginEnd(0);
+                params.topMargin = i == 0 ? 0 : Math.round(12 * root.getResources().getDisplayMetrics().density);
+                child.setLayoutParams(params);
+            }
+        }
     }
 
     private void initializeViews() {
@@ -374,7 +413,7 @@ public class FakeGPSActivity extends AppCompatActivity {
         int progress = total <= 0 ? 0 : (int) Math.min(100, done / total * 100);
         if (state == RunController.State.COMPLETED) progress = 100;
         progressBar.setProgress(progress);
-        progressText.setText(progress + "%");
+        progressText.setText(getString(R.string.progress_percent, progress));
         int lap = done <= 0 || lapDistance <= 0 ? 0 : Math.min(laps, (int) (done / lapDistance) + 1);
         lapCounterView.setText(String.format(Locale.US, "圈 %d/%d", lap, laps));
         distanceDoneView.setText(String.format(Locale.US, "%.2f km", done / 1000));

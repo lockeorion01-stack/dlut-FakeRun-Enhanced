@@ -9,11 +9,10 @@
     <color name="input_surface">#0D1726</color>
     <color name="text_primary">#F8FAFC</color>
     <color name="text_secondary">#A7B4C7</color>
-    <color name="text_muted">#708198</color>
+    <color name="text_muted">#91A0B5</color>
     <color name="outline">#2B3A4F</color>
     <color name="primary_orange">#FF7A18</color>
-    <color name="primary_orange_pressed">#E7620A</color>
     <color name="status_green">#25D39A</color>
     <color name="target_yellow">#F5C451</color>
-    <color name="danger_red">#F05A64</color>
+    <color name="danger_red">#B72E42</color>
 </resources>

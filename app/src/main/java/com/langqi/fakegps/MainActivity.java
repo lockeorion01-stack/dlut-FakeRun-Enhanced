@@ -13,17 +13,14 @@ import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "langqi_log";
-    private boolean isPermissionGranted = false;
 
     private final ActivityResultLauncher<String[]> requestPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             result -> {
                 if (result.containsValue(false)) {
                     Log.d(LOG_TAG, "权限被拒绝，无法启动服务");
-                    isPermissionGranted = false;
                 } else {
                     Log.d(LOG_TAG, "权限已授予");
-                    isPermissionGranted = true;
                 }
                 startFakeGPSActivity();
             });
@@ -51,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (allPermissionsGranted) {
-            isPermissionGranted = true;
             startFakeGPSActivity();
         } else {
             requestPermissionLauncher.launch(requiredPermissions);

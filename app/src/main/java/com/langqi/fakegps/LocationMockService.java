@@ -42,6 +42,12 @@ public class LocationMockService extends Service {
     private RunController controller;
     private RunResultStore results;
     private LocationManager locationManager;
+    private AppOpsManager appOps;
+    private final AppOpsManager.OnOpChangedListener authorizationListener = (op, packageName) -> {
+        if (packageName == null || packageName.equals(getPackageName())) {
+            handler.post(this::authorizationChanged);
+        }
+    };
     private PowerManager.WakeLock wakeLock;
     private boolean gpsAdded;
     private boolean networkAdded;
@@ -85,13 +91,19 @@ public class LocationMockService extends Service {
             }
 
             @Override public void write(GeoUtils.TrackPosition position, double speed) {
-                // Exceptions propagate to the controller, which freezes progress and reports ERROR.
+                // Android may silently ignore a write when the mock AppOp is revoked.
+                // Check both sides of the Binder calls before committing any progress.
+                checkAuthorization();
                 writeLocation(LocationManager.GPS_PROVIDER, position, speed, 6f);
                 writeLocation(LocationManager.NETWORK_PROVIDER, position, speed, 15f);
+                checkAuthorization();
             }
 
             @Override public void close() { releaseResources(); }
         }, this::publish);
+        appOps = getSystemService(AppOpsManager.class);
+        appOps.startWatchingMode(AppOpsManager.OPSTR_MOCK_LOCATION, getPackageName(),
+                authorizationListener);
     }
 
     void addListener(RunController.Listener listener) {
@@ -137,6 +149,16 @@ public class LocationMockService extends Service {
         if (manager.checkOpNoThrow(AppOpsManager.OPSTR_MOCK_LOCATION, Process.myUid(), getPackageName())
                 != AppOpsManager.MODE_ALLOWED) {
             throw new SecurityException("未被选为模拟位置应用");
+        }
+    }
+
+    private void authorizationChanged() {
+        // Also terminate paused sessions, which have no scheduled location writes.
+        if (!controller.snapshot().active()) return;
+        try {
+            checkAuthorization();
+        } catch (SecurityException e) {
+            controller.fail(e);
         }
     }
 
@@ -222,6 +244,7 @@ public class LocationMockService extends Service {
 
     @Override
     public void onDestroy() {
+        appOps.stopWatchingMode(authorizationListener);
         controller.stop();
         handler.removeCallbacksAndMessages(null);
         releaseResources();

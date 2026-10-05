@@ -32,8 +32,8 @@ public class RouteViewModel extends AndroidViewModel {
         final int resource;
         final File file;
 
-        Entry(String name, int resource) {
-            this.key = "raw:" + resource;
+        Entry(String name, int resource, String resourceName) {
+            this.key = RouteKey.builtIn(resourceName);
             this.name = name;
             this.resource = resource;
             this.file = null;
@@ -102,12 +102,13 @@ public class RouteViewModel extends AndroidViewModel {
     }
 
     void refresh(String preferredKey) {
+        String stableKey = RouteKey.migrate(preferredKey);
         int request = begin();
         worker.execute(() -> {
             try {
                 List<Entry> entries = entries();
                 Entry selected = entries.get(0);
-                for (Entry entry : entries) if (entry.key.equals(preferredKey)) selected = entry;
+                for (Entry entry : entries) if (entry.key.equals(stableKey)) selected = entry;
                 post(request, readOrError(entries, selected));
             } catch (Exception e) {
                 error(request, e);
@@ -251,7 +252,10 @@ public class RouteViewModel extends AndroidViewModel {
                 R.raw.uni_route_3, R.raw.uni_route_4, R.raw.uni_route_5, R.raw.uni_route_6, R.raw.three_km};
         String[] names = {"东盟 1", "东盟 2", "东盟 3", "东盟 4", "东盟 5", "大学路 1",
                 "大学路 2", "大学路 3", "大学路 4", "大学路 5", "大学路 6", "默认路径"};
-        for (int i = 0; i < resources.length; i++) result.add(new Entry(names[i], resources[i]));
+        for (int i = 0; i < resources.length; i++) {
+            result.add(new Entry(names[i], resources[i],
+                    getApplication().getResources().getResourceEntryName(resources[i])));
+        }
         for (File file : repository().files()) result.add(new Entry(file));
         return result;
     }

@@ -20,10 +20,11 @@ Android 模拟定位工具，按 KML 路线及指定配速更新系统测试位�
 - **实时状态**：当前配速、速度、进度条、圈数、已用时间、剩余距离
 - **更新间隔**：可调（0.1 ~ 5 秒，默认 0.3 秒）
 - **后台运行**：前台服务独立维护运行状态，旋转屏幕、返回桌面或重新打开页面不会重启任务；通知栏可暂停、恢复和停止
-- **状态与错误**：区分待命、启动中、运行中、暂停、完成、停止和失败；授权或定位写入失败时停止累计进度，并显示原因
-- **配置记忆**：保存上次选择的路线、配速、圈数和更新间隔
+- **状态与错误**：区分待命、启动中、运行中、暂停、完成、停止和失败；每次定位写入前后检查授权，同时监听模拟位置 AppOp 变化。运行中或暂停时撤销授权会结束任务、停止累计进度，并保存失败原因；重新授权后需要手动开始新任务
+- **配置记忆**：保存上次选择的路线、配速、圈数和更新间隔；内置路线使用稳定资源名称标识，支持将 1.0 版的数字资源 ID 迁移到新标识，避免升级后选错路线
 - **运行结果**：本地保存最近一次完成、停止或失败的路线名称、里程、用时与错误原因；后台结束或重新打开应用后仍可查看
 - **目标预览**：参数区独立显示下次运行的圈数和目标距离；手动输入和加减按钮都会立即更新预览，不改动上次运行结果
+- **可读性**：提高辅助文字和停止按钮的对比度；输入框与按钮按文字自适应高度，控制按钮分两行显示，小屏幕或大字体时运行数据改为纵向排列；适配系统栏、刘海和软键盘边距
 
 计时使用单调时钟，正常的 5 秒更新会累计完整的 5 秒距离。若回调停顿超过
 `max(2 秒, 更新间隔 × 2)`，仅计入一个更新周期，并同步扣除停顿期间的计时，避免位置跳跃。
@@ -35,9 +36,10 @@ Android 模拟定位工具，按 KML 路线及指定配速更新系统测试位�
 ## 环境支持
 
 - Android 8.0（API 26）及以上
-- 设备兼容性仍需在目标手机或模拟器上验证
-- 真机环境不支持 `Keep`，但支持 `小米运动健康` `华为运动健康` 等
-- 模拟器环境下支持 `Keep`，例如 PC 端的 `BlueStacks 5 China`
+- 当前编译和目标 SDK：Android 16（API 36）
+- CI 配置 Android 8.0 / 14 / 16（API 26 / 34 / 36）模拟器测试，实际通过情况以对应提交的 Actions 报告为准
+- 真机、厂商后台策略以及长时间锁屏运行需在目标设备上验证，操作步骤见 [设备验证说明](docs/testing.md)
+- 本项目的自动测试验证自身运行状态、系统测试位置接口和结果保存，不证明 Keep、小米运动健康、华为运动健康等第三方应用兼容；是否接收模拟位置取决于其版本与运行环境
 
 ## 模拟器通过 ADB 授权
 
@@ -133,7 +135,9 @@ $device = "127.0.0.1:$port"
 ./gradlew assembleDebug
 ```
 
-要求 JDK 17 与 Android SDK（路径写在 `local.properties`）。
+要求 JDK 17、Android SDK Platform 36 与 Build Tools 36.0.0（SDK 路径写在 `local.properties`）。
+项目使用 Gradle 8.13 和 Android Gradle Plugin 8.13.2，Wrapper 配置了官方分发包 SHA-256 校验。
+Windows PowerShell 下将 `./gradlew` 换成 `.\gradlew.bat`。
 
 跑单元测试：
 
@@ -152,14 +156,73 @@ $device = "127.0.0.1:$port"
 各更新间隔、暂停恢复、定位失败和完成状态，以及经度跨界、近对跖点、重复坐标和 50000 点路线查找。
 设备测试还覆盖界面重建、重新打开、后台运行、模拟位置授权失败、Android 文件系统上的原子替换，
 以及完全解绑后完成、失败、通知栏停止的结果保存和圈数编辑预览。
+新增回归覆盖运行中撤销授权、暂停中撤权、授权监听回调到达前恢复运行、后台撤权后的结果保存、
+旧版路线标识迁移及重新打开，以及 320 / 375 / 640 dp 布局在 1 倍 / 2 倍字体下的文本与触控尺寸。
+旧版 ID 迁移使用固定的 1.0 版资源表，不按新版本的数字 ID 猜测路线；未知旧构建的 ID 回退到默认选择。
 设备测试需要可正常安装 APK、执行 instrumentation 的 Android 设备或模拟器，
 会临时设置本应用的模拟位置 AppOp，并在测试结束后恢复原值。
 
 ## 自动检查与构建产物
 
 GitHub Actions 会在推送、Pull Request 和手动触发时执行单元测试、Lint 和 APK 构建，
-并使用 Android 14 模拟器执行设备测试。运行报告与 Debug APK 可从对应 Actions 运行的 Artifacts 下载。
+并分别使用 API 26、34、36 模拟器执行设备测试。各系统版本单独上传测试报告，一个版本失败不会取消其他版本。
+运行报告与 Debug APK 可从对应 Actions 运行的 Artifacts 下载。
 工作流需要推送到 GitHub 后才会在那里执行。
 
 APK 属于构建产物，不再跟踪在源码仓库中。也可以本地运行 `./gradlew assembleDebug`，
-输出位于 `app/build/outputs/apk/debug/app-debug.apk`。Debug APK 仅用于测试；正式发布仍需配置 Release 签名。
+输出位于 `app/build/outputs/apk/debug/app-debug.apk`。
+Debug APK 仅用于开发测试，不同电脑或 CI 运行可能使用不同的 Debug 证书，不能保证相互覆盖安装。
+需要持续升级时，请使用同一固定签名生成的 Release APK。
+
+## 正式签名与发布
+
+版本由根目录的 `version.properties` 统一管理。每次正式发布递增 `versionCode` 并更新
+`versionName`（例如 `1.1.0` → `1.1.1`）；发布工作流会检查标签与版本名称一致，并拒绝已有标签的版本号回退。
+
+仓库使用以下 GitHub Actions Secrets，不将私钥或密码提交到源码：
+
+| Secret | 用途 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | 固定 Release 密钥库文件的 Base64 编码 |
+| `ANDROID_KEYSTORE_PASSWORD` | 密钥库密码 |
+| `ANDROID_KEY_ALIAS` | 签名密钥别名 |
+| `ANDROID_KEY_PASSWORD` | 签名密钥密码 |
+
+当前固定 Release 证书的 SHA-256 指纹（公开信息）：
+
+```text
+1AD0185E47003E72567AA0A335B741466460417B3AA2190667876E6AD472375D
+```
+
+首次签名材料已配置到本仓库 Secrets。本机备份位于
+`%USERPROFILE%\.android\signing\dlut-fakerun\`，其中 `release.p12` 是密钥库，
+`signing-secrets.json` 包含本地构建所需路径和密码；该目录限制了访问权限。
+请另行妥善备份，后续版本持续使用同一密钥。Fork 本仓库时需要配置自己的 Secrets 与证书指纹。
+
+发布方式：
+
+1. 更新 `version.properties`，提交并推送代码。
+2. 仅需要签名安装包时，在 Actions 中手动运行 **Android release**，从 Artifacts 下载。
+3. 正式发布时，创建与版本一致的标签，例如 `git tag v1.1.0`，再执行 `git push origin v1.1.0`。
+4. 发布工作流先运行完整检查和三个版本的设备测试，然后签名、验证 APK；标签触发的运行会创建 GitHub Release，附带 `FakeGPS-版本.apk`、`SHA256SUMS.txt` 和 `signature.txt`。
+
+本地 Windows 签名构建：
+
+```powershell
+.\scripts\build-release.ps1 -SigningConfig "$env:USERPROFILE\.android\signing\dlut-fakerun\signing-secrets.json"
+```
+
+也可以自行提供 `ANDROID_KEYSTORE_PATH`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、
+`ANDROID_KEY_PASSWORD` 四个环境变量后执行 `./gradlew :app:assembleRelease`。
+缺少任一项配置会明确失败，不会再静默生成无法安装的 unsigned APK。
+签名产物位于 `app/build/outputs/apk/release/app-release.apk`。
+
+可以使用 Android SDK 的 `apksigner verify --verbose --print-certs <APK路径>` 检查签名，
+将输出的证书 SHA-256 与上方指纹比较。
+
+### 从旧 Debug 安装包迁移
+
+新 Release 签名无法覆盖安装证书不同的旧 Debug APK。这是 Android 的安装校验规则。
+首次切换前，通过路线选择器确认需要保留的路线，并保留原始 KML 文件；卸载旧应用后安装 Release，
+重新导入路线、设置参数并授权。卸载会清除应用私有路线和运行摘要。
+之后使用同一 Release 签名和更高 `versionCode` 的版本即可覆盖升级并保留应用数据。

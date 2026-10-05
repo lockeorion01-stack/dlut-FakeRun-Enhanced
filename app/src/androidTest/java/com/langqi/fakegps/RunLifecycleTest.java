@@ -21,6 +21,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -178,6 +179,88 @@ public class RunLifecycleTest {
         await(() -> snapshot.get().elapsedMs >= 5000);
         assertEquals(RunController.State.RUNNING, snapshot.get().state);
         assertTrue(snapshot.get().distance >= 16.6);
+    }
+
+    @Test public void revokingAuthorizationWhileRunningStopsBeforeTheNextSlowTick() throws Exception {
+        scenario.onActivity(activity -> ((EditText) activity.findViewById(R.id.input_interval)).setText("5"));
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        RunController.Snapshot accepted = snapshot.get();
+        shell("appops set " + context.getPackageName() + " android:mock_location ignore");
+        await(() -> snapshot.get().state == RunController.State.ERROR);
+        assertEquals(accepted.distance, snapshot.get().distance, 0);
+        assertEquals(accepted.elapsedMs, snapshot.get().elapsedMs);
+        assertEquals("运行失败", status());
+        SystemClock.sleep(300);
+        assertEquals(accepted.distance, snapshot.get().distance, 0);
+        assertEquals(RunController.State.ERROR, new RunResultStore(context).read().state);
+    }
+
+    @Test public void revokingAuthorizationWhilePausedTerminatesWithoutWaitingForResume() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        click(R.id.btn_pause);
+        await(() -> snapshot.get().state == RunController.State.PAUSED);
+        RunController.Snapshot paused = snapshot.get();
+        shell("appops set " + context.getPackageName() + " android:mock_location ignore");
+        await(() -> snapshot.get().state == RunController.State.ERROR);
+        assertEquals(paused.distance, snapshot.get().distance, 0);
+        assertEquals(paused.elapsedMs, snapshot.get().elapsedMs);
+    }
+
+    @Test public void resumeRechecksAuthorizationBeforeTheWatcherCallbackCanRun() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        click(R.id.btn_pause);
+        RunController.Snapshot paused = snapshot.get();
+        // Hold the main thread so that resume happens before the queued AppOp listener.
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            try {
+                shell("appops set " + context.getPackageName() + " android:mock_location ignore");
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+            service.resumeRun();
+            assertEquals(RunController.State.ERROR, snapshot.get().state);
+        });
+        assertEquals(paused.distance, snapshot.get().distance, 0);
+        assertEquals(paused.elapsedMs, snapshot.get().elapsedMs);
+    }
+
+    @Test public void backgroundAuthorizationRevocationPersistsFailureAfterServiceDestruction() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        String routeName = snapshot.get().config.routeName;
+        closeAllClients();
+        shell("appops set " + context.getPackageName() + " android:mock_location ignore");
+        awaitSavedResult(RunController.State.ERROR);
+        assertTrue(new RunResultStore(context).read().distance > 0);
+        reopenAndCheckSummary(routeName, "运行失败");
+    }
+
+    @Test public void versionOneRouteSelectionMigratesAndSurvivesReopen() throws Exception {
+        scenario.close();
+        // The old default route ID must map to three_km even if the new resource table moves.
+        assertTrue(context.getSharedPreferences("run_settings", 0).edit()
+                .putString("route", "raw:" + 0x7f0f0005).commit());
+        scenario = ActivityScenario.launch(FakeGPSActivity.class);
+        awaitRoute("raw:three_km");
+        assertEquals("raw:three_km", context.getSharedPreferences("run_settings", 0).getString("route", null));
+        scenario.close();
+        scenario = ActivityScenario.launch(FakeGPSActivity.class);
+        awaitRoute("raw:three_km");
+    }
+
+    private void awaitRoute(String key) throws Exception {
+        await(() -> {
+            AtomicBoolean matches = new AtomicBoolean();
+            scenario.onActivity(activity -> {
+                RouteViewModel.Routes routes = new ViewModelProvider(activity).get(RouteViewModel.class)
+                        .routes().getValue();
+                matches.set(!routes.busy && routes.selected != null && key.equals(routes.selected.key));
+            });
+            return matches.get();
+        });
     }
 
     @Test public void androidParserAndAtomicReplacementWorkTogether() throws Exception {
