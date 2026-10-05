@@ -2,11 +2,15 @@ package com.langqi.fakegps;
 
 import android.Manifest;
 import android.app.AppOpsManager;
+import android.app.ActivityManager;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
@@ -37,6 +41,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.Locale;
 
 import static org.junit.Assert.*;
 
@@ -50,10 +56,14 @@ public class RunLifecycleTest {
     private final RunController.Listener listener = snapshot::set;
     private int previousMockMode;
     private Map<String, ?> originalSettings;
+    private Map<String, ?> originalResults;
 
     @Before public void setup() throws Exception {
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         originalSettings = new HashMap<>(context.getSharedPreferences("run_settings", 0).getAll());
+        SharedPreferences results = context.getSharedPreferences(RunResultStore.PREFERENCES, 0);
+        originalResults = new HashMap<>(results.getAll());
+        assertTrue(results.edit().clear().commit());
         AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         previousMockMode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_MOCK_LOCATION,
                 Process.myUid(), context.getPackageName());
@@ -98,6 +108,17 @@ public class RunLifecycleTest {
         if (context != null && originalSettings != null) {
             SharedPreferences.Editor editor = context.getSharedPreferences("run_settings", 0).edit().clear();
             for (Map.Entry<String, ?> entry : originalSettings.entrySet()) {
+                editor.putString(entry.getKey(), (String) entry.getValue());
+            }
+            assertTrue(editor.commit());
+        }
+        if (context != null && originalResults != null) {
+            // stopService also covers an unbound run if a background assertion failed.
+            context.stopService(new Intent(context, LocationMockService.class));
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            SharedPreferences.Editor editor = context.getSharedPreferences(RunResultStore.PREFERENCES, 0)
+                    .edit().clear();
+            for (Map.Entry<String, ?> entry : originalResults.entrySet()) {
                 editor.putString(entry.getKey(), (String) entry.getValue());
             }
             assertTrue(editor.commit());
@@ -179,6 +200,108 @@ public class RunLifecycleTest {
             if (files != null) for (File file : files) assertTrue(file.delete());
             assertTrue(directory.delete());
         }
+    }
+
+    @Test public void completionWithoutBoundClientsSurvivesServiceDestructionAndReopen() throws Exception {
+        RunController.Config shortRun = new RunController.Config("background", "后台完成测试",
+                Arrays.asList(new GeoUtils.TrackPoint(22, 108, 10),
+                        new GeoUtils.TrackPoint(22.0001, 108, 20)), 300, 1, 100);
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> service.startRun(shortRun));
+        await(() -> snapshot.get().state == RunController.State.RUNNING);
+        closeAllClients();
+        awaitSavedResult(RunController.State.COMPLETED);
+        RunResultStore.Result result = new RunResultStore(context).read();
+        assertEquals(shortRun.totalDistance, result.distance, 1e-8);
+        assertTrue(result.elapsedMs > 0);
+        reopenAndCheckSummary("后台完成测试", "已完成");
+        assertEquals("待命", status()); // Reading a saved result must not restart a run.
+    }
+
+    @Test public void backgroundProviderErrorSurvivesServiceDestructionAndReopen() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        double accepted = snapshot.get().distance;
+        String routeName = snapshot.get().config.routeName;
+        closeAllClients();
+        // Removing our GPS test provider makes the next write fail deterministically.
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() ->
+                context.getSystemService(LocationManager.class).removeTestProvider(LocationManager.GPS_PROVIDER));
+        awaitSavedResult(RunController.State.ERROR);
+        RunResultStore.Result result = new RunResultStore(context).read();
+        assertTrue(result.distance >= accepted);
+        assertNotNull(result.error);
+        reopenAndCheckSummary(routeName, "运行失败");
+        assertTrue(text(R.id.last_run_result).contains(result.error));
+    }
+
+    @Test public void notificationStopWithoutBoundClientsPreservesSummary() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        String routeName = snapshot.get().config.routeName;
+        Notification notification = Arrays.stream(context.getSystemService(NotificationManager.class)
+                .getActiveNotifications()).filter(item -> item.getId() == 1).findFirst().get().getNotification();
+        closeAllClients();
+        notification.actions[notification.actions.length - 1].actionIntent.send();
+        awaitSavedResult(RunController.State.STOPPED);
+        assertTrue(new RunResultStore(context).read().distance > 0);
+        reopenAndCheckSummary(routeName, "已停止");
+    }
+
+    @Test public void manualAndButtonLapEditsPreviewNextRunWithoutChangingPreviousResult() throws Exception {
+        click(R.id.btn_start);
+        await(() -> snapshot.get().state == RunController.State.RUNNING && snapshot.get().distance > 0);
+        click(R.id.btn_stop);
+        await(() -> snapshot.get().state == RunController.State.STOPPED);
+        String previousResult = text(R.id.last_run_result);
+        RunController.Config config = snapshot.get().config;
+        scenario.onActivity(activity -> ((EditText) activity.findViewById(R.id.input_repetitions)).setText("2"));
+        assertTrue(text(R.id.next_run_target).contains("2 圈"));
+        assertTrue(text(R.id.next_run_target).contains(String.format(Locale.getDefault(), "%.2f", config.lapDistance * 2 / 1000)));
+        click(R.id.btn_laps_up);
+        assertTrue(text(R.id.next_run_target).contains("3 圈"));
+        assertEquals(previousResult, text(R.id.last_run_result));
+        scenario.recreate();
+        await(() -> text(R.id.next_run_target).contains("3 圈"));
+        assertEquals(previousResult, text(R.id.last_run_result));
+    }
+
+    @Test public void malformedSavedResultDoesNotBlockOpeningTheScreen() throws Exception {
+        context.getSharedPreferences(RunResultStore.PREFERENCES, 0).edit()
+                .putString("last_result", "{broken").commit();
+        assertNull(new RunResultStore(context).read());
+        scenario.recreate();
+        await(() -> status().equals("待命"));
+    }
+
+    private void closeAllClients() {
+        scenario.close();
+        scenario = null;
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> service.removeListener(listener));
+        context.unbindService(connection);
+        connection = null;
+        service = null;
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+    }
+
+    @SuppressWarnings("deprecation")
+    private void awaitSavedResult(RunController.State state) throws Exception {
+        await(() -> {
+            RunResultStore.Result result = new RunResultStore(context).read();
+            return result != null && result.state == state;
+        });
+        await(() -> context.getSystemService(ActivityManager.class).getRunningServices(Integer.MAX_VALUE)
+                .stream().noneMatch(info -> info.service.getClassName().equals(LocationMockService.class.getName())));
+    }
+
+    private void reopenAndCheckSummary(String routeName, String state) throws Exception {
+        scenario = ActivityScenario.launch(FakeGPSActivity.class);
+        await(() -> text(R.id.last_run_result).contains(routeName) && text(R.id.last_run_result).contains(state));
+    }
+
+    private String text(int id) {
+        AtomicReference<String> value = new AtomicReference<>();
+        scenario.onActivity(activity -> value.set(((TextView) activity.findViewById(id)).getText().toString()));
+        return value.get();
     }
 
     private void click(int id) { scenario.onActivity(activity -> ((Button) activity.findViewById(id)).performClick()); }

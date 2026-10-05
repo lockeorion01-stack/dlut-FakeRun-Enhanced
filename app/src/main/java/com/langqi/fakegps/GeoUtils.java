@@ -89,7 +89,7 @@ final class GeoUtils {
             return null;
         }
         double totalDistance = progressList.get(progressList.size() - 1);
-        if (totalDistance <= 0) {
+        if (!Double.isFinite(displacement) || !Double.isFinite(totalDistance) || totalDistance <= 0) {
             return null;
         }
         // 套圈：把任意大的位移折回单圈范围内
@@ -98,29 +98,26 @@ final class GeoUtils {
             target += totalDistance;
         }
 
-        for (int i = 1; i < progressList.size(); i++) {
-            double segmentDistance = progressList.get(i) - progressList.get(i - 1);
-            if (segmentDistance <= 0) {
-                continue;
-            }
-            if (progressList.get(i) >= target) {
-                double k = (target - progressList.get(i - 1)) / segmentDistance;
-                TrackPoint p1 = points.get(i - 1);
-                TrackPoint p2 = points.get(i);
-                double latitude = p1.latitude + k * (p2.latitude - p1.latitude);
-                double longitude = p1.longitude + k * (p2.longitude - p1.longitude);
-                double altitude = p1.altitude + k * (p2.altitude - p1.altitude);
-                // 航向取当前所在路段的方向，与真实 GPS 的 bearing 语义一致
-                float bearing = (float) calculateBearing(p1, p2);
-                return new TrackPosition(latitude, longitude, altitude, bearing);
-            }
+        // Lower bound finds the first segment ending at/after target. Skip an initial
+        // zero-length plateau, but preserve the preceding bearing at exact vertices.
+        int low = 1;
+        int high = progressList.size() - 1;
+        while (low < high) {
+            int middle = low + (high - low) / 2;
+            double end = progressList.get(middle);
+            if (end < target || end <= 0) low = middle + 1;
+            else high = middle;
         }
-
-        // 位移落在最后一段的浮点误差范围内时，返回终点
-        TrackPoint last = points.get(points.size() - 1);
-        TrackPoint secondLast = points.get(points.size() - 2);
-        return new TrackPosition(last.latitude, last.longitude, last.altitude,
-                (float) calculateBearing(secondLast, last));
+        double segmentDistance = progressList.get(low) - progressList.get(low - 1);
+        if (segmentDistance <= 0) return null;
+        double k = (target - progressList.get(low - 1)) / segmentDistance;
+        TrackPoint p1 = points.get(low - 1);
+        TrackPoint p2 = points.get(low);
+        double latitude = p1.latitude + k * (p2.latitude - p1.latitude);
+        double longitude = normalizeLongitude(p1.longitude
+                + k * normalizeLongitude(p2.longitude - p1.longitude));
+        double altitude = p1.altitude + k * (p2.altitude - p1.altitude);
+        return new TrackPosition(latitude, longitude, altitude, (float) calculateBearing(p1, p2));
     }
 
     /**
@@ -132,7 +129,7 @@ final class GeoUtils {
         double f = WGS84_F;
         double b = (1 - f) * a;
 
-        double l = Math.toRadians(p2.longitude - p1.longitude);
+        double l = Math.toRadians(normalizeLongitude(p2.longitude - p1.longitude));
         double u1 = Math.atan((1 - f) * Math.tan(Math.toRadians(p1.latitude)));
         double u2 = Math.atan((1 - f) * Math.tan(Math.toRadians(p2.latitude)));
         double sinU1 = Math.sin(u1);
@@ -176,7 +173,9 @@ final class GeoUtils {
                 && ++iterations < VINCENTY_MAX_ITERATIONS);
 
         if (iterations >= VINCENTY_MAX_ITERATIONS) {
-            return 0;
+            // Near-antipodal Vincenty iterations may oscillate. A spherical estimate
+            // (within about 0.6% of WGS-84) is preferable to silently dropping a segment.
+            return sphericalDistance(p1, p2);
         }
 
         double uSq = cosSqAlpha * (a * a - b * b) / (b * b);
@@ -186,6 +185,21 @@ final class GeoUtils {
                 * (-1 + 2 * cos2SigmaM * cos2SigmaM) - bigB / 6 * cos2SigmaM
                 * (-3 + 4 * sinSigma * sinSigma) * (-3 + 4 * cos2SigmaM * cos2SigmaM)));
         return b * bigA * (sigma - deltaSigma);
+    }
+
+    private static double normalizeLongitude(double longitude) {
+        if (longitude >= -180 && longitude <= 180) return longitude;
+        return ((longitude + 180) % 360 + 360) % 360 - 180;
+    }
+
+    private static double sphericalDistance(TrackPoint p1, TrackPoint p2) {
+        double lat1 = Math.toRadians(p1.latitude);
+        double lat2 = Math.toRadians(p2.latitude);
+        double sinLat = Math.sin((lat2 - lat1) / 2);
+        double sinLon = Math.sin(Math.toRadians(normalizeLongitude(p2.longitude - p1.longitude)) / 2);
+        double haversine = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLon * sinLon;
+        haversine = Math.max(0, Math.min(1, haversine));
+        return 2 * 6371008.8 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
     }
 
     /**

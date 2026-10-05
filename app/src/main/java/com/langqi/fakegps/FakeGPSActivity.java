@@ -13,6 +13,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -46,12 +48,14 @@ public class FakeGPSActivity extends AppCompatActivity {
     private TextView kmlInfo, currentPaceView, currentSpeedDisplay, targetPaceView;
     private TextView distanceDoneView, distanceRemainingView, elapsedTimeView;
     private TextView progressText, lapCounterView, statusBadgeView;
+    private TextView nextRunTargetView, lastRunResultView;
     private EditText inputPace, inputRepetitions, inputInterval;
     private ProgressBar progressBar;
     private Button btnStart, btnPause, btnResume, btnStop, btnUpdateRoute, btnDeleteRoute;
     private RunController.Config shownConfig;
 
     private final RunController.Listener runListener = snapshot -> {
+        if (!snapshot.active()) model.refreshLastResult();
         // A retained terminal service must not restore the summary of a different selected route.
         if (!snapshot.active() && snapshot.config != null && routes != null && !routes.busy
                 && routes.selected != null && !routes.selected.key.equals(snapshot.config.routeKey)) {
@@ -92,7 +96,9 @@ public class FakeGPSActivity extends AppCompatActivity {
             });
     private final ActivityResultLauncher<String[]> permissionRequest = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
-            result -> Toast.makeText(this, "权限设置已更新，请点击开始", Toast.LENGTH_SHORT).show());
+            result -> Toast.makeText(this, Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))
+                    ? R.string.location_permission_granted : R.string.location_permission_required,
+                    Toast.LENGTH_SHORT).show());
     private final ActivityResultLauncher<String> notificationRequest = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(), result -> { });
 
@@ -127,6 +133,8 @@ public class FakeGPSActivity extends AppCompatActivity {
         progressText = findViewById(R.id.progress_text);
         lapCounterView = findViewById(R.id.lap_counter);
         statusBadgeView = findViewById(R.id.status_badge);
+        nextRunTargetView = findViewById(R.id.next_run_target);
+        lastRunResultView = findViewById(R.id.last_run_result);
         inputPace = findViewById(R.id.input_pace);
         inputRepetitions = findViewById(R.id.input_repetitions);
         inputInterval = findViewById(R.id.input_interval);
@@ -165,8 +173,14 @@ public class FakeGPSActivity extends AppCompatActivity {
         findViewById(R.id.btn_pace_down).setOnClickListener(v -> adjustPace(-5));
         findViewById(R.id.btn_laps_up).setOnClickListener(v -> adjustLaps(1));
         findViewById(R.id.btn_laps_down).setOnClickListener(v -> adjustLaps(-1));
-        inputPace.setOnFocusChangeListener((v, focused) -> { if (!focused) updateTargets(); });
-        inputRepetitions.setOnFocusChangeListener((v, focused) -> { if (!focused) render(); });
+        TextWatcher parametersChanged = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) { updateTargets(); }
+        };
+        inputPace.addTextChangedListener(parametersChanged);
+        inputRepetitions.addTextChangedListener(parametersChanged);
+        inputInterval.addTextChangedListener(parametersChanged);
         statusBadgeView.setOnClickListener(v -> {
             if (model.session != null && model.session.state == RunController.State.ERROR) {
                 new AlertDialog.Builder(this).setTitle("运行失败").setMessage(model.session.error)
@@ -219,7 +233,7 @@ public class FakeGPSActivity extends AppCompatActivity {
                 throw new IllegalArgumentException("圈数至少为 1，更新间隔应为 0.1～5 秒");
             }
             RunController.Config config = new RunController.Config(routes.selected.key, routes.selected.name,
-                    routes.points, pace, laps, Math.round(interval * 1000));
+                    routes.prepared, pace, laps, Math.round(interval * 1000));
             inputPace.setText(Pace.format(pace));
             saveSettings();
             service.startRun(config);
@@ -264,15 +278,30 @@ public class FakeGPSActivity extends AppCompatActivity {
         try {
             long laps = Long.parseLong(inputRepetitions.getText().toString().trim());
             inputRepetitions.setText(String.valueOf(Math.max(1, Math.min(Integer.MAX_VALUE, laps + delta))));
-            model.session = null;
-            render();
+            updateTargets();
         } catch (NumberFormatException e) { inputRepetitions.setError("请输入有效圈数"); }
     }
 
     private void updateTargets() {
         try {
-            targetPaceView.setText(Pace.format(Pace.parse(inputPace.getText().toString())) + " /km");
-        } catch (IllegalArgumentException e) { targetPaceView.setText("--:-- /km"); }
+            targetPaceView.setText(getString(R.string.pace_per_km,
+                    Pace.format(Pace.parse(inputPace.getText().toString()))));
+        } catch (IllegalArgumentException e) { targetPaceView.setText(R.string.pace_unknown); }
+        if (active()) {
+            RunController.Config config = model.session.config;
+            nextRunTargetView.setText(getString(R.string.active_run_target,
+                    config.laps, config.totalDistance / 1000));
+            return;
+        }
+        try {
+            int laps = Integer.parseInt(inputRepetitions.getText().toString().trim());
+            if (laps < 1 || routes == null || routes.busy || routes.prepared == null) {
+                nextRunTargetView.setText(R.string.next_run_target_unknown);
+            } else {
+                nextRunTargetView.setText(getString(R.string.next_run_target,
+                        laps, routes.distance * laps / 1000));
+            }
+        } catch (NumberFormatException e) { nextRunTargetView.setText(R.string.next_run_target_unknown); }
     }
 
     private void render() {
@@ -355,6 +384,17 @@ public class FakeGPSActivity extends AppCompatActivity {
         boolean moving = state == RunController.State.RUNNING && snapshot.config != null;
         currentPaceView.setText(moving ? Pace.format(snapshot.config.paceSeconds) : "--:--");
         currentSpeedDisplay.setText(String.format(Locale.US, "%.2f m/s", moving ? snapshot.config.speed : 0));
+        RunResultStore.Result last = model.lastResult;
+        lastRunResultView.setVisibility(last == null ? View.GONE : View.VISIBLE);
+        if (last != null) {
+            int lastStatus = last.state == RunController.State.COMPLETED ? R.string.result_completed
+                    : last.state == RunController.State.STOPPED ? R.string.result_stopped : R.string.result_failed;
+            String summary = getString(R.string.last_run_summary, last.routeName, getString(lastStatus),
+                    last.distance / 1000, last.totalDistance / 1000, last.elapsedMs / 3600000,
+                    last.elapsedMs / 60000 % 60, last.elapsedMs / 1000 % 60);
+            lastRunResultView.setText(last.error == null ? summary
+                    : getString(R.string.last_run_error, summary, last.error));
+        }
         updateTargets();
     }
 
@@ -367,6 +407,7 @@ public class FakeGPSActivity extends AppCompatActivity {
 
     @Override protected void onStart() {
         super.onStart();
+        model.refreshLastResult();
         bound = bindService(new Intent(this, LocationMockService.class), connection, Context.BIND_AUTO_CREATE);
         render();
     }

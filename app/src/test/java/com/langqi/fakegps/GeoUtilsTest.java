@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,6 +23,73 @@ import java.util.List;
  * </ol>
  */
 public class GeoUtilsTest {
+
+    @Test public void nearAntipodalDistanceUsesNonzeroFallback() {
+        GeoUtils.TrackPoint first = new GeoUtils.TrackPoint(0, 0, 0);
+        for (double longitude : new double[]{179.9999, 180, -179.9999}) {
+            GeoUtils.TrackPoint second = new GeoUtils.TrackPoint(0, longitude, 0);
+            double distance = GeoUtils.calculateDistance(first, second);
+            // WGS-84 antipodal distance is about 20,004 km; spherical fallback is approximate.
+            assertEquals(20003931, distance, 30000);
+            assertEquals(distance, GeoUtils.calculateDistance(second, first), 0.001);
+        }
+    }
+
+    @Test public void datelineCrossingTakesShortPathInBothDirections() {
+        for (int direction : new int[]{1, -1}) {
+            List<GeoUtils.TrackPoint> route = Arrays.asList(
+                    new GeoUtils.TrackPoint(0, direction * 179.999, 10),
+                    new GeoUtils.TrackPoint(0, -direction * 179.999, 30));
+            List<Double> progress = GeoUtils.buildProgressList(route);
+            assertEquals(222.639, progress.get(1), 0.01);
+            GeoUtils.TrackPosition middle = GeoUtils.interpolate(route, progress, progress.get(1) / 2);
+            assertNotNull(middle);
+            assertEquals(180, Math.abs(middle.longitude), 1e-9);
+            assertEquals(20, middle.altitude, 1e-9);
+            assertEquals(direction == 1 ? 90 : 270, middle.bearing, 0.01);
+        }
+    }
+
+    @Test public void duplicatePlateausPreserveStartAndExactVertex() {
+        GeoUtils.TrackPoint a = point(0, 0, 0);
+        GeoUtils.TrackPoint b = point(0, 100, 10);
+        GeoUtils.TrackPoint c = point(100, 100, 20);
+        List<GeoUtils.TrackPoint> route = Arrays.asList(a, a, a, b, b, b, c, c);
+        List<Double> progress = GeoUtils.buildProgressList(route);
+        assertEquals(a.longitude, GeoUtils.interpolate(route, progress, 0).longitude, 1e-9);
+        GeoUtils.TrackPosition vertex = GeoUtils.interpolate(route, progress, progress.get(3));
+        assertEquals(b.latitude, vertex.latitude, 1e-9);
+        assertEquals(b.longitude, vertex.longitude, 1e-9);
+        GeoUtils.TrackPosition after = GeoUtils.interpolate(route, progress, progress.get(3) + 1);
+        assertTrue(after.latitude > b.latitude);
+        assertEquals(0, after.bearing, 0.1);
+    }
+
+    @Test public void largeRouteLookupDoesNotScanAllPrecedingPoints() {
+        final int size = 50000;
+        final int[] reads = {0};
+        List<Double> progress = new AbstractList<Double>() {
+            @Override public Double get(int index) { reads[0]++; return (double) index; }
+            @Override public int size() { return size; }
+        };
+        List<GeoUtils.TrackPoint> points = new AbstractList<GeoUtils.TrackPoint>() {
+            @Override public GeoUtils.TrackPoint get(int index) {
+                return new GeoUtils.TrackPoint(index * 0.00001, 108, 0);
+            }
+            @Override public int size() { return size; }
+        };
+        GeoUtils.TrackPosition nearEnd = GeoUtils.interpolate(points, progress, size - 1.5);
+        assertEquals((size - 1.5) * 0.00001, nearEnd.latitude, 1e-10);
+        assertTrue("Route lookup must stay logarithmic", reads[0] <= 24);
+    }
+
+    @Test public void nonFiniteDisplacementIsRejected() {
+        List<GeoUtils.TrackPoint> route = squareLoop();
+        List<Double> progress = GeoUtils.buildProgressList(route);
+        assertNull(GeoUtils.interpolate(route, progress, Double.NaN));
+        assertNull(GeoUtils.interpolate(route, progress, Double.POSITIVE_INFINITY));
+        assertNull(GeoUtils.interpolate(route, progress, Double.NEGATIVE_INFINITY));
+    }
 
     /** 一个边长约 100 m 的正方形闭环，便于手算验证。 */
     private static final double BASE_LAT = 22.7090;

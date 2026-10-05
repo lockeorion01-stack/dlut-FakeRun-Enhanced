@@ -32,20 +32,18 @@ final class RunController {
 
         Config(String routeKey, String routeName, List<GeoUtils.TrackPoint> points,
                int paceSeconds, int laps, long intervalMs) {
-            if (points == null || points.size() < 2 || paceSeconds <= 0 || laps <= 0
+            this(routeKey, routeName, new PreparedRoute(points), paceSeconds, laps, intervalMs);
+        }
+
+        Config(String routeKey, String routeName, PreparedRoute route,
+               int paceSeconds, int laps, long intervalMs) {
+            if (route == null || paceSeconds <= 0 || laps <= 0
                     || intervalMs < 100 || intervalMs > 5000) {
                 throw new IllegalArgumentException("路线或运行参数无效");
             }
-            for (GeoUtils.TrackPoint point : points) {
-                if (point == null || !Double.isFinite(point.latitude)
-                        || !Double.isFinite(point.longitude) || !Double.isFinite(point.altitude)
-                        || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180) {
-                    throw new IllegalArgumentException("路线包含无效坐标或高程");
-                }
-            }
-            this.points = GeoUtils.immutableCopy(points);
-            this.progress = GeoUtils.immutableCopy(GeoUtils.buildProgressList(this.points));
-            lapDistance = progress.get(progress.size() - 1);
+            this.points = route.points;
+            this.progress = route.progress;
+            lapDistance = route.distance;
             totalDistance = lapDistance * laps;
             if (!Double.isFinite(totalDistance) || lapDistance <= 0) {
                 throw new IllegalArgumentException("路线长度必须大于零");

@@ -28,6 +28,10 @@ final class KmlParser {
     private KmlParser() { }
 
     static List<GeoUtils.TrackPoint> read(InputStream input) throws Exception {
+        return readPrepared(input).points;
+    }
+
+    static PreparedRoute readPrepared(InputStream input) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int count;
@@ -78,11 +82,7 @@ final class KmlParser {
             }
             points.add(new GeoUtils.TrackPoint(latitude, longitude, altitude));
         }
-        if (points.size() < 2) throw new IllegalArgumentException("线路至少需要两个坐标点");
-        List<Double> progress = GeoUtils.buildProgressList(points);
-        double distance = progress.get(progress.size() - 1);
-        if (!Double.isFinite(distance) || distance <= 0) throw new IllegalArgumentException("路线长度必须大于零");
-        return GeoUtils.immutableCopy(points);
+        return new PreparedRoute(points);
     }
 
     private static void feature(DocumentBuilderFactory factory, String name, boolean enabled) {

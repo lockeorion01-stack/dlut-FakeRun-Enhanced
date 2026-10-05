@@ -31,7 +31,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="FAKEGPS"
+                    android:text="@string/brand_title"
                     android:textColor="@color/primary_orange"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -40,7 +40,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="运行控制台"
+                    android:text="@string/dashboard_title"
                     android:textColor="@color/text_primary"
                     android:textSize="26sp"
                     android:textStyle="bold" />
@@ -54,7 +54,7 @@
                 android:paddingTop="7dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="7dp"
-                android:text="GPS MOCK"
+                android:text="@string/mock_badge"
                 android:textColor="@color/status_green"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -64,7 +64,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="选择路线，配置配速，开始模拟"
+            android:text="@string/dashboard_intro"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -95,7 +95,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="路线"
+                        android:text="@string/route_label"
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
@@ -103,7 +103,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="内置 · 已保存"
+                        android:text="@string/route_sources"
                         android:textColor="@color/text_muted"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -121,7 +121,6 @@
                         android:layout_height="52dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_field"
-                        android:entries="@array/route_names"
                         android:paddingStart="4dp"
                         android:paddingEnd="4dp" />
 
@@ -134,7 +133,7 @@
                         android:minHeight="48dp"
                         android:paddingStart="14dp"
                         android:paddingEnd="14dp"
-                        android:text="添加线路"
+                        android:text="@string/route_add"
                         android:textColor="@color/black"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -153,7 +152,7 @@
                         android:layout_weight="1"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="替换线路"
+                        android:text="@string/route_replace"
                         android:textColor="@color/text_primary" />
 
                     <Button
@@ -164,7 +163,7 @@
                         android:layout_weight="1"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="删除线路"
+                        android:text="@string/route_delete"
                         android:textColor="@color/text_primary" />
                 </LinearLayout>
 
@@ -205,7 +204,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="实时状态"
+                        android:text="@string/run_status_title"
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
@@ -214,7 +213,7 @@
                         android:id="@+id/status_badge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="READY"
+                        android:text="@string/status_ready"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:textStyle="bold" />
@@ -236,7 +235,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="当前配速"
+                            android:text="@string/current_pace_label"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
 
@@ -246,7 +245,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:fontFamily="monospace"
-                            android:text="--'--&quot;"
+                            android:text="@string/current_pace_empty"
                             android:textColor="@color/status_green"
                             android:textSize="40sp"
                             android:textStyle="bold" />
@@ -255,7 +254,7 @@
                             android:id="@+id/current_speed_display"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.00 m/s"
+                            android:text="@string/speed_empty"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -276,7 +275,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="目标配速"
+                            android:text="@string/target_pace_label"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
 
@@ -286,7 +285,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:fontFamily="monospace"
-                            android:text="5'33&quot;"
+                            android:text="@string/target_pace_default"
                             android:textColor="@color/target_yellow"
                             android:textSize="30sp"
                             android:textStyle="bold" />
@@ -313,7 +312,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="0%"
+                        android:text="@string/progress_empty"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -321,7 +320,7 @@
                         android:id="@+id/lap_counter"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="圈 0/1"
+                        android:text="@string/laps_empty"
                         android:textColor="@color/target_yellow"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -342,7 +341,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="已完成"
+                            android:text="@string/distance_done_label"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
 
@@ -351,7 +350,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="3dp"
-                            android:text="0.00 km"
+                            android:text="@string/distance_empty"
                             android:textColor="@color/text_primary"
                             android:textSize="17sp"
                             android:textStyle="bold" />
@@ -372,7 +371,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="剩余距离"
+                            android:text="@string/distance_remaining_label"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
 
@@ -381,7 +380,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="3dp"
-                            android:text="2.46 km"
+                            android:text="@string/distance_remaining_empty"
                             android:textColor="@color/target_yellow"
                             android:textSize="17sp"
                             android:textStyle="bold" />
@@ -402,7 +401,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="已用时间"
+                            android:text="@string/elapsed_label"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
 
@@ -412,7 +411,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="3dp"
                             android:fontFamily="monospace"
-                            android:text="00:00:00"
+                            android:text="@string/elapsed_empty"
                             android:textColor="@color/text_primary"
                             android:textSize="17sp"
                             android:textStyle="bold" />
@@ -440,10 +439,19 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="运行参数"
+                    android:text="@string/parameters_title"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/next_run_target"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/next_run_target_unknown"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -456,22 +464,25 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="配速 (分:秒/km)"
+                        android:labelFor="@id/input_pace"
+                        android:text="@string/pace_label"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btn_pace_down"
+                        android:contentDescription="@string/pace_decrease_description"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="-5"
+                        android:text="@string/pace_decrease"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp" />
 
                     <EditText
                         android:id="@+id/input_pace"
+                        android:importantForAutofill="no"
                         android:layout_width="76dp"
                         android:layout_height="48dp"
                         android:layout_marginStart="6dp"
@@ -481,18 +492,19 @@
                         android:inputType="text"
                         android:digits="0123456789:."
                         android:singleLine="true"
-                        android:text="5:33"
+                        android:text="@string/pace_default"
                         android:textColor="@color/target_yellow"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btn_pace_up"
+                        android:contentDescription="@string/pace_increase_description"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="+5"
+                        android:text="@string/pace_increase"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -508,22 +520,25 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="重复圈数"
+                        android:labelFor="@id/input_repetitions"
+                        android:text="@string/laps_label"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
                     <Button
                         android:id="@+id/btn_laps_down"
+                        android:contentDescription="@string/laps_decrease_description"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="-1"
+                        android:text="@string/laps_decrease"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp" />
 
                     <EditText
                         android:id="@+id/input_repetitions"
+                        android:importantForAutofill="no"
                         android:layout_width="76dp"
                         android:layout_height="48dp"
                         android:layout_marginStart="6dp"
@@ -531,18 +546,19 @@
                         android:background="@drawable/bg_field"
                         android:gravity="center"
                         android:inputType="number"
-                        android:text="1"
+                        android:text="@string/laps_default"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btn_laps_up"
+                        android:contentDescription="@string/laps_increase_description"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:backgroundTint="@color/surface_elevated"
                         android:minHeight="48dp"
-                        android:text="+1"
+                        android:text="@string/laps_increase"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -558,18 +574,20 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="更新间隔 (秒)"
+                        android:labelFor="@id/input_interval"
+                        android:text="@string/interval_label"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
                     <EditText
                         android:id="@+id/input_interval"
+                        android:importantForAutofill="no"
                         android:layout_width="100dp"
                         android:layout_height="48dp"
                         android:background="@drawable/bg_field"
                         android:gravity="center"
                         android:inputType="numberDecimal"
-                        android:text="0.3"
+                        android:text="@string/interval_default"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -595,7 +613,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="运行控制"
+                    android:text="@string/controls_title"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -614,7 +632,7 @@
                         android:layout_weight="1.25"
                         android:backgroundTint="@color/status_green"
                         android:minHeight="48dp"
-                        android:text="开始"
+                        android:text="@string/run_start"
                         android:textColor="@color/black"
                         android:textStyle="bold" />
 
@@ -627,7 +645,7 @@
                         android:layout_weight="1"
                         android:backgroundTint="@color/target_yellow"
                         android:minHeight="48dp"
-                        android:text="暂停"
+                        android:text="@string/run_pause"
                         android:textColor="@color/black"
                         android:textStyle="bold" />
 
@@ -640,7 +658,7 @@
                         android:layout_weight="1"
                         android:backgroundTint="@color/primary_orange"
                         android:minHeight="48dp"
-                        android:text="恢复"
+                        android:text="@string/run_resume"
                         android:textColor="@color/black"
                         android:textStyle="bold" />
 
@@ -652,11 +670,22 @@
                         android:layout_weight="1"
                         android:backgroundTint="@color/danger_red"
                         android:minHeight="48dp"
-                        android:text="停止"
+                        android:text="@string/run_stop"
                         android:textColor="@color/white"
                         android:textStyle="bold" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/last_run_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_info"
+            android:padding="16dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:visibility="gone" />
     </LinearLayout>
 </ScrollView>

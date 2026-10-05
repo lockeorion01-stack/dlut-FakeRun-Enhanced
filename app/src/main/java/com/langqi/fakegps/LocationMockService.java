@@ -40,6 +40,7 @@ public class LocationMockService extends Service {
     private final List<RunController.Listener> listeners = new ArrayList<>();
     private final LocalBinder binder = new LocalBinder();
     private RunController controller;
+    private RunResultStore results;
     private LocationManager locationManager;
     private PowerManager.WakeLock wakeLock;
     private boolean gpsAdded;
@@ -55,6 +56,7 @@ public class LocationMockService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        results = new RunResultStore(this);
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FakeGPS:Run");
@@ -154,6 +156,7 @@ public class LocationMockService extends Service {
 
     @android.annotation.SuppressLint({"WakelockTimeout", "Wakelock"})
     private void publish(RunController.Snapshot snapshot) {
+        results.save(snapshot);
         // Held only while actively advancing. Every pause, stop, error and destruction releases it.
         if (snapshot.state == RunController.State.RUNNING) {
             if (!wakeLock.isHeld()) wakeLock.acquire();

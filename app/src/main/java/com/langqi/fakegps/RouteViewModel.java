@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 /** Keeps route I/O and its result alive across Activity recreation, without retaining a View. */
 public class RouteViewModel extends AndroidViewModel {
     RunController.Snapshot session;
+    RunResultStore.Result lastResult;
     private Uri pendingImport;
     private String pendingImportReplacement;
     static final class Entry {
@@ -50,25 +51,27 @@ public class RouteViewModel extends AndroidViewModel {
         final List<Entry> entries;
         final Entry selected;
         final List<GeoUtils.TrackPoint> points;
+        final PreparedRoute prepared;
         final double distance;
         final boolean busy;
         final String error;
 
-        Routes(List<Entry> entries, Entry selected, List<GeoUtils.TrackPoint> points,
+        Routes(List<Entry> entries, Entry selected, PreparedRoute prepared,
                boolean busy, String error) {
             this.entries = GeoUtils.immutableCopy(entries);
             this.selected = selected;
-            this.points = GeoUtils.immutableCopy(points);
+            this.prepared = prepared;
+            this.points = prepared == null ? Collections.emptyList() : prepared.points;
             this.busy = busy;
             this.error = error;
-            List<Double> progress = GeoUtils.buildProgressList(points);
-            distance = progress.isEmpty() ? 0 : progress.get(progress.size() - 1);
+            distance = prepared == null ? 0 : prepared.distance;
         }
 
         Routes(Routes previous, boolean busy, String error) {
             entries = previous.entries;
             selected = previous.selected;
             points = previous.points;
+            prepared = previous.prepared;
             distance = previous.distance;
             this.busy = busy;
             this.error = error;
@@ -76,7 +79,7 @@ public class RouteViewModel extends AndroidViewModel {
     }
 
     private final MutableLiveData<Routes> routes = new MutableLiveData<>(
-            new Routes(Collections.emptyList(), null, Collections.emptyList(), false, null));
+            new Routes(Collections.emptyList(), null, null, false, null));
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private boolean cleared;
@@ -84,8 +87,11 @@ public class RouteViewModel extends AndroidViewModel {
 
     public RouteViewModel(Application application) {
         super(application);
+        refreshLastResult();
         refresh(application.getSharedPreferences("run_settings", 0).getString("route", null));
     }
+
+    void refreshLastResult() { lastResult = new RunResultStore(getApplication()).read(); }
 
     LiveData<Routes> routes() { return routes; }
 
@@ -115,7 +121,7 @@ public class RouteViewModel extends AndroidViewModel {
             try {
                 post(request, read(entries, entry));
             } catch (Exception e) {
-                post(request, new Routes(entries, entry, Collections.emptyList(), false, message(e)));
+                post(request, new Routes(entries, entry, null, false, message(e)));
             }
         });
     }
@@ -176,7 +182,7 @@ public class RouteViewModel extends AndroidViewModel {
         try (InputStream input = entry.file == null
                 ? getApplication().getResources().openRawResource(entry.resource)
                 : new FileInputStream(entry.file)) {
-            return new Routes(entries, entry, KmlParser.read(input), false, null);
+            return new Routes(entries, entry, KmlParser.readPrepared(input), false, null);
         }
     }
 
@@ -184,7 +190,7 @@ public class RouteViewModel extends AndroidViewModel {
         try {
             return read(entries, entry);
         } catch (Exception e) {
-            return new Routes(entries, entry, Collections.emptyList(), false, message(e));
+            return new Routes(entries, entry, null, false, message(e));
         }
     }
 

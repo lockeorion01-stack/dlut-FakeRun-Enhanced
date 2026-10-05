@@ -2,18 +2,60 @@
 <resources>
     <string name="app_name">FakeGPS</string>
 
-    <string-array name="route_names">
-        <item>东盟 1 (0.44km)</item>
-        <item>东盟 2 (0.44km)</item>
-        <item>东盟 3 (0.44km)</item>
-        <item>东盟 4 (0.45km)</item>
-        <item>东盟 5 (0.44km)</item>
-        <item>大学路 1 (0.44km)</item>
-        <item>大学路 2 (0.43km)</item>
-        <item>大学路 3 (0.43km)</item>
-        <item>大学路 4 (0.43km)</item>
-        <item>大学路 5 (0.42km)</item>
-        <item>大学路 6 (0.44km)</item>
-        <item>默认路径 (3km)</item>
-    </string-array>
+    <string name="location_permission_granted">定位权限已授予，请点击开始</string>
+    <string name="location_permission_required">需要精确定位权限，请在权限设置中开启</string>
+    <string name="pace_per_km">%1$s /km</string>
+    <string name="pace_unknown">--:-- /km</string>
+    <string name="next_run_target">下次运行目标：%1$d 圈 · %2$.2f km</string>
+    <string name="active_run_target">本次运行目标：%1$d 圈 · %2$.2f km</string>
+    <string name="next_run_target_unknown">请选择有效路线，并输入至少 1 圈</string>
+    <string name="result_completed">已完成</string>
+    <string name="result_stopped">已停止</string>
+    <string name="result_failed">运行失败</string>
+    <string name="last_run_summary">最近一次运行\n%1$s · %2$s\n距离：%3$.2f / %4$.2f km\n用时：%5$02d:%6$02d:%7$02d</string>
+    <string name="last_run_error">%1$s\n失败原因：%2$s</string>
+    <string name="pace_decrease_description">每公里配速减少 5 秒</string>
+    <string name="pace_increase_description">每公里配速增加 5 秒</string>
+    <string name="laps_decrease_description">减少 1 圈</string>
+    <string name="laps_increase_description">增加 1 圈</string>
+    <string name="brand_title" formatted="false">FAKEGPS</string>
+    <string name="dashboard_title" formatted="false">运行控制台</string>
+    <string name="mock_badge" formatted="false">GPS MOCK</string>
+    <string name="dashboard_intro" formatted="false">选择路线，配置配速，开始模拟</string>
+    <string name="route_label" formatted="false">路线</string>
+    <string name="route_sources" formatted="false">内置 · 已保存</string>
+    <string name="route_add" formatted="false">添加线路</string>
+    <string name="route_replace" formatted="false">替换线路</string>
+    <string name="route_delete" formatted="false">删除线路</string>
+    <string name="run_status_title" formatted="false">运行状态与数据</string>
+    <string name="status_ready" formatted="false">待命</string>
+    <string name="current_pace_label" formatted="false">当前配速</string>
+    <string name="current_pace_empty" formatted="false">--:--</string>
+    <string name="speed_empty" formatted="false">0.00 m/s</string>
+    <string name="target_pace_label" formatted="false">目标配速</string>
+    <string name="target_pace_default" formatted="false">5:33 /km</string>
+    <string name="progress_empty" formatted="false">0%</string>
+    <string name="laps_empty" formatted="false">圈 0/1</string>
+    <string name="distance_done_label" formatted="false">已完成</string>
+    <string name="distance_empty" formatted="false">0.00 km</string>
+    <string name="distance_remaining_label" formatted="false">剩余距离</string>
+    <string name="distance_remaining_empty" formatted="false">-- km</string>
+    <string name="elapsed_label" formatted="false">已用时间</string>
+    <string name="elapsed_empty" formatted="false">00:00:00</string>
+    <string name="parameters_title" formatted="false">运行参数</string>
+    <string name="pace_label" formatted="false">配速 (分:秒/km)</string>
+    <string name="pace_decrease" formatted="false">-5</string>
+    <string name="pace_default" formatted="false">5:33</string>
+    <string name="pace_increase" formatted="false">+5</string>
+    <string name="laps_label" formatted="false">重复圈数</string>
+    <string name="laps_decrease" formatted="false">-1</string>
+    <string name="laps_default" formatted="false">1</string>
+    <string name="laps_increase" formatted="false">+1</string>
+    <string name="interval_label" formatted="false">更新间隔 (秒)</string>
+    <string name="interval_default" formatted="false">0.3</string>
+    <string name="controls_title" formatted="false">运行控制</string>
+    <string name="run_start" formatted="false">开始</string>
+    <string name="run_pause" formatted="false">暂停</string>
+    <string name="run_resume" formatted="false">恢复</string>
+    <string name="run_stop" formatted="false">停止</string>
 </resources>

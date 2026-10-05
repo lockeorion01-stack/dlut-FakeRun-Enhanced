@@ -194,4 +194,22 @@ public class RunControllerTest {
         scheduler.tickAfter(300);
         assertEquals(RunController.State.RUNNING, controller.snapshot().state);
     }
+
+    @Test public void preparedGeometryCanBeReusedAcrossRunsWithoutCopyOrRecalculation() {
+        ArrayList<GeoUtils.TrackPoint> source = new ArrayList<>(config(300).points);
+        PreparedRoute route = new PreparedRoute(source);
+        source.clear();
+        RunController.Config oneLap = new RunController.Config("route", "Route", route, 300, 1, 300);
+        RunController.Config threeLaps = new RunController.Config("route", "Route", route, 330, 3, 100);
+        assertSame(oneLap.points, threeLaps.points);
+        assertSame(oneLap.progress, threeLaps.progress);
+        assertEquals(oneLap.totalDistance * 3, threeLaps.totalDistance, 0);
+        assertThrows(UnsupportedOperationException.class, () -> route.points.clear());
+        assertThrows(UnsupportedOperationException.class, () -> route.progress.clear());
+        controller.prepare(threeLaps);
+        controller.start();
+        scheduler.tickAfter(100);
+        assertEquals(RunController.State.RUNNING, controller.snapshot().state);
+        assertEquals(100.0 / 330, controller.snapshot().distance, 1e-9);
+    }
 }
