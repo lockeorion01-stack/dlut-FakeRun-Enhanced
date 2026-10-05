@@ -1,280 +1,228 @@
 package com.langqi.fakegps;
 
-import android.annotation.SuppressLint;
+import android.Manifest;
+import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
-import android.os.Build;
-import android.os.Bundle;
+import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.os.Process;
 import android.os.SystemClock;
 import android.util.Log;
 
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/** Owns the run independently of any Activity, including its single scheduled callback. */
 public class LocationMockService extends Service {
+    private static final String TAG = "LocationMockService";
+    private static final String CHANNEL = "mock_gps_channel";
+    private static final String START = "com.langqi.fakegps.START";
+    private static final String PAUSE = "com.langqi.fakegps.PAUSE";
+    private static final String RESUME = "com.langqi.fakegps.RESUME";
+    private static final String STOP = "com.langqi.fakegps.STOP";
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final List<RunController.Listener> listeners = new ArrayList<>();
+    private final LocalBinder binder = new LocalBinder();
+    private RunController controller;
     private LocationManager locationManager;
-    private boolean receiverRegistered;
-    private static final String LOG_TAG = "langqi_log";
-    private static final String ACTION_MOCK_LOCATION = "com.langqi.fakegps.MOCK_LOCATION";
-    /** 广播里未带精度时的兜底水平精度（米）。 */
-    private static final float DEFAULT_ACCURACY_METERS = 6.0f;
-    /** 网络定位精度相对 GPS 的放大倍数。 */
-    private static final float NETWORK_ACCURACY_FACTOR = 2.5f;
+    private PowerManager.WakeLock wakeLock;
+    private boolean gpsAdded;
+    private boolean networkAdded;
+    private boolean foreground;
+    private long lastNotificationTime;
+    private RunController.State lastNotificationState;
 
-    private final BroadcastReceiver locationReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(LOG_TAG, "收到 ADB 广播: " + intent.getAction());
+    public final class LocalBinder extends Binder {
+        LocationMockService service() { return LocationMockService.this; }
+    }
 
-            if (ACTION_MOCK_LOCATION.equals(intent.getAction())) {
-                double lat = 0.0;
-                double lng = 0.0;
-                double alt = 0.0;
-                float bea = 0.0f;
-                float speed = 0.0f;
-                float acc = 0.0f;
-                try {
-                    String latStr = intent.getStringExtra("lat");
-                    String lngStr = intent.getStringExtra("lng");
-                    String altStr = intent.getStringExtra("alt");
-                    String beaStr = intent.getStringExtra("bea");
-                    String speedStr = intent.getStringExtra("speed");
-                    String accStr = intent.getStringExtra("acc");
-                    if (latStr != null) {
-                        lat = Double.parseDouble(latStr);
-                    }
-                    if (lngStr != null) {
-                        lng = Double.parseDouble(lngStr);
-                    }
-                    if (altStr != null) {
-                        alt = Double.parseDouble(altStr);
-                    }
-                    if (beaStr != null) {
-                        bea = Float.parseFloat(beaStr);
-                    }
-                    if (speedStr != null) {
-                        speed = Float.parseFloat(speedStr);
-                    }
-                    if (accStr != null) {
-                        acc = Float.parseFloat(accStr);
-                    }
-                    Log.d(LOG_TAG, "解析到位置: lat=" + lat + ", lng=" + lng + ", alt=" + alt + ", bea=" + bea + ", speed="
-                            + speed + ", acc=" + acc);
-                    mockLocation(lat, lng, alt, bea, speed, acc);
-                } catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    Log.e(LOG_TAG, "解析参数时遇到错误");
-                }
-            }
-        }
-    };
-
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d(LOG_TAG, "LocationMockService onCreate");
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-
-        try {
-            removeTestProviderNetwork();
-            addTestProviderNetwork();
-            Log.d(LOG_TAG, "Network provider setup completed");
-
-            removeTestProviderGPS();
-            addTestProviderGPS();
-            Log.d(LOG_TAG, "GPS provider setup completed");
-
-            initNotificationChannel();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(locationReceiver, new IntentFilter(ACTION_MOCK_LOCATION),
-                        Context.RECEIVER_NOT_EXPORTED);
-            } else {
-                registerReceiver(locationReceiver, new IntentFilter(ACTION_MOCK_LOCATION));
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FakeGPS:Run");
+        wakeLock.setReferenceCounted(false);
+        getSystemService(NotificationManager.class).createNotificationChannel(
+                new NotificationChannel(CHANNEL, "模拟位置运行", NotificationManager.IMPORTANCE_LOW));
+        controller = new RunController(SystemClock::elapsedRealtime, new RunController.Scheduler() {
+            @Override public void post(Runnable task, long delayMs) { handler.postDelayed(task, delayMs); }
+            @Override public void cancel(Runnable task) { handler.removeCallbacks(task); }
+        }, new RunController.Sink() {
+            // Criteria constants have the same values as ProviderProperties (added in API 31).
+            @android.annotation.SuppressLint("WrongConstant")
+            @Override public void open() {
+                // Enter the foreground before any provider operation which could fail.
+                startForeground(1, notification(controller.snapshot()));
+                foreground = true;
+                checkAuthorization();
+                locationManager.addTestProvider(LocationManager.GPS_PROVIDER, false, true, false,
+                        false, true, true, true, Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
+                gpsAdded = true;
+                locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true);
+                locationManager.addTestProvider(LocationManager.NETWORK_PROVIDER, true, false, true,
+                        true, true, true, true, Criteria.POWER_LOW, Criteria.ACCURACY_COARSE);
+                networkAdded = true;
+                locationManager.setTestProviderEnabled(LocationManager.NETWORK_PROVIDER, true);
             }
-            receiverRegistered = true;
-            Log.d(LOG_TAG, "Service setup completed");
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Service setup failed: " + e.getMessage(), e);
-        }
+
+            @Override public void write(GeoUtils.TrackPosition position, double speed) {
+                // Exceptions propagate to the controller, which freezes progress and reports ERROR.
+                writeLocation(LocationManager.GPS_PROVIDER, position, speed, 6f);
+                writeLocation(LocationManager.NETWORK_PROVIDER, position, speed, 15f);
+            }
+
+            @Override public void close() { releaseResources(); }
+        }, this::publish);
     }
 
-    @SuppressLint("ForegroundServiceType")
-    private void initNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    "mock_gps_channel",
-                    "Mock GPS Service",
-                    NotificationManager.IMPORTANCE_LOW);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
-
-            Notification notification = new Notification.Builder(this, "mock_gps_channel")
-                    .setContentTitle("[FakeGPS v2.0] 模拟位置运行中 - made by langqi")
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
-                    .build();
-
-            startForeground(1, notification);
-        }
+    void addListener(RunController.Listener listener) {
+        if (!listeners.contains(listener)) listeners.add(listener);
+        listener.changed(controller.snapshot());
     }
 
-    private void mockLocation(double lat, double lng, double alt, float bea, float speed, float acc) {
-        Log.d(LOG_TAG,
-                "Mocking location: lat=" + lat + ", lng=" + lng + ", alt=" + alt + ", speed=" + speed + ", acc=" + acc);
+    void removeListener(RunController.Listener listener) { listeners.remove(listener); }
+
+    void startRun(RunController.Config config) {
+        if (!controller.prepare(config)) return;
         try {
-            setLocationGPS(lat, lng, alt, bea, speed, acc);
-            setLocationNetwork(lat, lng, alt, bea, speed, acc);
-            Log.d(LOG_TAG, "Location mocked successfully");
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Failed to mock location: " + e.getMessage(), e);
+            ContextCompat.startForegroundService(this, new Intent(this, LocationMockService.class)
+                    .setAction(START));
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Unable to start foreground service", e);
+            controller.fail(e);
         }
     }
+
+    void pauseRun() { controller.pause(); }
+    void resumeRun() { controller.resume(); }
+    void stopRun() { controller.stop(); }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent == null ? null : intent.getAction();
+        if (START.equals(action)) controller.start();
+        else if (PAUSE.equals(action)) controller.pause();
+        else if (RESUME.equals(action)) controller.resume();
+        else if (STOP.equals(action)) controller.stop();
+        if (!controller.snapshot().active()) stopSelf(startId);
+        // A killed process must never silently restart a run with missing configuration.
+        return START_NOT_STICKY;
+    }
+
+    private void checkAuthorization() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            throw new SecurityException("缺少定位权限");
+        }
+        AppOpsManager manager = (AppOpsManager) getSystemService(APP_OPS_SERVICE);
+        if (manager.checkOpNoThrow(AppOpsManager.OPSTR_MOCK_LOCATION, Process.myUid(), getPackageName())
+                != AppOpsManager.MODE_ALLOWED) {
+            throw new SecurityException("未被选为模拟位置应用");
+        }
+    }
+
+    private void writeLocation(String provider, GeoUtils.TrackPosition position,
+                               double speed, float accuracy) {
+        Location location = new Location(provider);
+        location.setLatitude(position.latitude);
+        location.setLongitude(position.longitude);
+        location.setAltitude(position.altitude);
+        location.setBearing(position.bearing);
+        location.setSpeed((float) speed);
+        location.setAccuracy(accuracy);
+        location.setTime(System.currentTimeMillis());
+        location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+        locationManager.setTestProviderLocation(provider, location);
+    }
+
+    @android.annotation.SuppressLint({"WakelockTimeout", "Wakelock"})
+    private void publish(RunController.Snapshot snapshot) {
+        // Held only while actively advancing. Every pause, stop, error and destruction releases it.
+        if (snapshot.state == RunController.State.RUNNING) {
+            if (!wakeLock.isHeld()) wakeLock.acquire();
+        } else if (wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (foreground && (snapshot.state != lastNotificationState || now - lastNotificationTime >= 1000)) {
+            getSystemService(NotificationManager.class).notify(1, notification(snapshot));
+            lastNotificationState = snapshot.state;
+            lastNotificationTime = now;
+        }
+        for (RunController.Listener listener : new ArrayList<>(listeners)) listener.changed(snapshot);
+    }
+
+    private Notification notification(RunController.Snapshot snapshot) {
+        PendingIntent open = PendingIntent.getActivity(this, 0,
+                new Intent(this, FakeGPSActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        boolean paused = snapshot.state == RunController.State.PAUSED;
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(paused ? "FakeGPS · 已暂停" : "FakeGPS · 模拟位置运行中")
+                .setContentText(snapshot.config == null ? "正在准备" : String.format(Locale.US,
+                        "%s · %.2f / %.2f km", snapshot.config.routeName,
+                        snapshot.distance / 1000, snapshot.config.totalDistance / 1000))
+                .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true);
+        if (snapshot.state == RunController.State.RUNNING || paused) {
+            builder.addAction(0, paused ? "恢复" : "暂停", command(paused ? RESUME : PAUSE, 1));
+        }
+        return builder.addAction(0, "停止", command(STOP, 2)).build();
+    }
+
+    private PendingIntent command(String action, int requestCode) {
+        return PendingIntent.getService(this, requestCode,
+                new Intent(this, LocationMockService.class).setAction(action),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private void releaseResources() {
+        if (wakeLock.isHeld()) wakeLock.release();
+        if (gpsAdded) removeProvider(LocationManager.GPS_PROVIDER);
+        if (networkAdded) removeProvider(LocationManager.NETWORK_PROVIDER);
+        gpsAdded = false;
+        networkAdded = false;
+        if (foreground) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            foreground = false;
+        }
+        stopSelf();
+    }
+
+    private void removeProvider(String provider) {
+        try {
+            locationManager.removeTestProvider(provider);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Unable to remove test provider " + provider, e);
+        }
+    }
+
+    @Override public IBinder onBind(Intent intent) { return binder; }
 
     @Override
     public void onDestroy() {
-        removeTestProviderNetwork();
-        removeTestProviderGPS();
-        if (receiverRegistered) {
-            unregisterReceiver(locationReceiver);
-            receiverRegistered = false;
-        }
+        controller.stop();
+        handler.removeCallbacksAndMessages(null);
+        releaseResources();
+        listeners.clear();
         super.onDestroy();
-    }
-
-    private void removeTestProviderNetwork() {
-        try {
-            Log.d(LOG_TAG, "开始移除网络测试提供者");
-            if (locationManager != null) {
-                Log.d(LOG_TAG, "网络提供者已启用，准备禁用并移除");
-                try {
-                    locationManager.setTestProviderEnabled(LocationManager.NETWORK_PROVIDER, false);
-                    Log.d(LOG_TAG, "成功禁用网络测试提供者");
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "无法禁用网络测试提供者: " + e.getMessage(), e);
-                }
-                try {
-                    locationManager.removeTestProvider(LocationManager.NETWORK_PROVIDER);
-                    Log.d(LOG_TAG, "成功移除网络测试提供者");
-                } catch (Exception e) {
-                    Log.e(LOG_TAG, "无法移除网络测试提供者: " + e.getMessage(), e);
-                }
-            } else {
-                Log.d(LOG_TAG, "网络提供者未启用，无需移除");
-            }
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "ERROR from removeTestProviderNetwork", e);
-        }
-    }
-
-    @SuppressLint("wrongconstant")
-    private void addTestProviderNetwork() {
-        try {
-            // 注意，由于 android api 问题，下面的参数会提示错误(以下参数是通过相关API获取的真实NETWORK参数，不是随便写的)
-            // Keep the legacy overload because ProviderProperties is unavailable on
-            // Android 11 and below, even though this overload is deprecated there.
-            locationManager.addTestProvider(LocationManager.NETWORK_PROVIDER, true, false,
-                    true, true, true, true,
-                    true, Criteria.POWER_LOW, Criteria.ACCURACY_COARSE);
-            if (!locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.setTestProviderEnabled(LocationManager.NETWORK_PROVIDER, true);
-            }
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "ERROR from addTestProviderNetwork", e);
-        }
-    }
-
-    private void removeTestProviderGPS() {
-        try {
-            if (locationManager != null) {
-                try {
-                    locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, false);
-                } catch (Exception e) {
-                    Log.w(LOG_TAG, "无法禁用 GPS 测试提供者: " + e.getMessage());
-                }
-                try {
-                    locationManager.removeTestProvider(LocationManager.GPS_PROVIDER);
-                    Log.d(LOG_TAG, "成功移除 GPS 测试提供者");
-                } catch (Exception e) {
-                    Log.w(LOG_TAG, "无法移除 GPS 测试提供者: " + e.getMessage());
-                }
-            } else {
-                Log.d(LOG_TAG, "GPS 提供者未启用，无需移除");
-            }
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "SERVICEGO: ERROR - removeTestProviderGPS", e);
-        }
-    }
-
-    @SuppressLint("wrongconstant")
-    private void addTestProviderGPS() {
-        try {
-            Log.d(LOG_TAG, "Adding GPS test provider");
-            // Keep the legacy overload for API 26+ compatibility.
-            locationManager.addTestProvider(LocationManager.GPS_PROVIDER, false, true, false,
-                    false, true, true, true, Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
-            Log.d(LOG_TAG, "GPS provider added");
-
-            if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true);
-                Log.d(LOG_TAG, "GPS provider enabled");
-            }
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Failed to add GPS provider: " + e.getMessage(), e);
-        }
-    }
-
-    private void setLocationGPS(double lat, double lng, double alt, float bea, float speed, float acc) {
-        try {
-            // 尽可能模拟真实的 GPS 数据
-            Location loc = new Location(LocationManager.GPS_PROVIDER);
-            loc.setAccuracy(acc > 0 ? acc : DEFAULT_ACCURACY_METERS); // 水平精度，单位米
-            loc.setAltitude(alt); // 设置高度，在 WGS 84 参考坐标系中的米
-            loc.setBearing(bea); // 方向（度）
-            loc.setLatitude(lat); // 纬度（度）
-            loc.setLongitude(lng); // 经度（度）
-
-            loc.setTime(System.currentTimeMillis()); // 本地时间
-            loc.setSpeed(speed);
-            loc.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
-            Bundle bundle = new Bundle();
-            bundle.putInt("satellites", 7);
-            loc.setExtras(bundle);
-
-            locationManager.setTestProviderLocation(LocationManager.GPS_PROVIDER, loc);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "EROOR from setLocationGPS");
-        }
-    }
-
-    private void setLocationNetwork(double lat, double lng, double alt, float bea, float speed, float acc) {
-        try {
-            // 尽可能模拟真实的 NETWORK 数据
-            Location loc = new Location(LocationManager.NETWORK_PROVIDER);
-            // 网络定位精度天然低于 GPS，给一个更粗的值
-            loc.setAccuracy(acc > 0 ? acc * NETWORK_ACCURACY_FACTOR : DEFAULT_ACCURACY_METERS);
-            loc.setAltitude(alt); // 设置高度，在 WGS 84 参考坐标系中的米
-            loc.setBearing(bea); // 方向（度）
-            loc.setLatitude(lat); // 纬度（度）
-            loc.setLongitude(lng); // 经度（度）
-            loc.setTime(System.currentTimeMillis()); // 本地时间
-            loc.setSpeed(speed);
-            loc.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
-
-            locationManager.setTestProviderLocation(LocationManager.NETWORK_PROVIDER, loc);
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "ERROR from setLocationNetwork");
-        }
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
     }
 }

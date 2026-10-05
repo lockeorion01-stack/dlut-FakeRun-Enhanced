@@ -456,7 +456,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="配速"
+                        android:text="配速 (分:秒/km)"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
 
@@ -478,8 +478,10 @@
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_field"
                         android:gravity="center"
-                        android:inputType="numberDecimal"
-                        android:text="5.55"
+                        android:inputType="text"
+                        android:digits="0123456789:."
+                        android:singleLine="true"
+                        android:text="5:33"
                         android:textColor="@color/target_yellow"
                         android:textSize="16sp"
                         android:textStyle="bold" />

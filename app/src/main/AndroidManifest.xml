@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.langqi.fakegps">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 【位置相关权限】 -->
     <!-- 获取精确位置信息（GPS） -->
@@ -18,6 +17,8 @@
     <!-- 【前台服务权限】 -->
     <!-- 允许启动前台服务，确保服务持续运行 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -50,7 +51,7 @@
 
         <activity
             android:name=".FakeGPSActivity"
-            android:exported="true" />
+            android:exported="false" />
 
     </application>
 
